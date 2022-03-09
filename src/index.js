@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 
 const { v4: uuidv4, validate } = require('uuid');
+const { json } = require('express/lib/response');
 
 const app = express();
 app.use(express.json());
@@ -28,8 +29,8 @@ function checksCreateTodosUserAvailability(request, response, next) {
   const is_pro = user.pro;
   const amount_todo = user.todos.length;
 
-  if(is_pro === false && amount_todo >= 10) {
-    return response.status(400).send();
+  if(is_pro === false && amount_todo > 9) {
+    return response.status(403);
   }
 
   return next();
@@ -41,15 +42,27 @@ function checksTodoExists(request, response, next) {
 
   const user = users.find((user) => {return user.username === username});
 
-  const todo_exists = user.todos.find((todo) => {return todo.id === id});
 
-  const validate_uuid = /^[0-9a-fA-F]{8}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{12}$/gi;
-
-  if(!user || !todo_exists || !validate_uuid.test(id)) {
-    response.status(400).send();
+  if(!validate(id)) {
+    return response.status(400).json({error: "invalid UUID"});
   }
 
+
+  if(!user) {
+    return response.status(404).json({error: "User not exists"});
+  }
+
+  const todo_exists = user.todos.find((todo) => {return todo.id === id});
+
+  
+  if(!todo_exists) {
+    return response.status(404).json({error: "Todo not exists"});
+  }
+
+
   request.todo = todo_exists;
+  request.user = user;
+
 
   return next();
 }
